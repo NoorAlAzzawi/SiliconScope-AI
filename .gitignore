@@ -1,0 +1,145 @@
+# ──────────────────────────────────────────────
+# SiliconScope AI — .gitignore
+# Stack: C++20, Node.js/TypeScript, React, SQLite, PostgreSQL, macOS
+# ──────────────────────────────────────────────
+
+# ── macOS ──────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+.AppleDouble
+.LSOverride
+
+# ── Editor / IDE ───────────────────────────────
+.obsidian/
+.vscode/settings.json
+.vscode/launch.json
+.vscode/extensions.json
+.idea/
+*.suo
+*.user
+*.sln.docstates
+*.code-workspace
+
+# ── Environment & secrets ──────────────────────
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
+config/local.*
+
+# ── C++ build outputs ──────────────────────────
+build/
+out/
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+compile_commands.json
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.so.*
+*.dylib
+*.dll
+*.exe
+*.out
+*.app
+
+# ── C++ dependency managers ────────────────────
+vcpkg_installed/
+_deps/
+conan/
+.conan/
+
+# ── Node.js / npm / pnpm / yarn ────────────────
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.npm/
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+package-lock.json.bak
+
+# ── TypeScript ─────────────────────────────────
+dist/
+*.tsbuildinfo
+tsconfig.tsbuildinfo
+
+# ── React / Vite / webpack ─────────────────────
+.next/
+.nuxt/
+.svelte-kit/
+.vite/
+.parcel-cache/
+storybook-static/
+backend/src/static/
+
+# ── Test output ────────────────────────────────
+coverage/
+*.lcov
+test-results/
+playwright-report/
+
+# ── Local databases ────────────────────────────
+*.db
+*.sqlite
+*.sqlite3
+*.sqlite-shm
+*.sqlite-wal
+
+# ── PostgreSQL ─────────────────────────────────
+postgres-data/
+pg_data/
+*.pgdump
+*.sql.gz
+
+# ── Logs ──────────────────────────────────────
+logs/
+*.log
+*.log.*
+
+# ── Temporary & backup files ───────────────────
+*.tmp
+*.bak
+*.swp
+*.swo
+*~
+.#*
+\#*\#
+
+# ── OS-generated thumbnails ────────────────────
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# ── Claude Code internal ───────────────────────
+.claude/
+
+# ── Obsidian canvas files ──────────────────────
+*.canvas
+
+# ── Empty planning stubs ──────────────────────
+AGENTS.md
+TASKS.md
+
+# ── Stale internal planning docs ──────────────
+docs/Dashboard.md
+docs/PHASE1_IMPLEMENTATION_PLAN.md
+docs/DECISIONS.md
+docs/TEST_PLAN.md
+
+# ── Dashboard Vite boilerplate README ─────────
+dashboard/README.md

@@ -1,0 +1,15 @@
+{
+  "context": {
+    "executable": "bench",
+    "build_type": "Release"
+  },
+  "benchmarks": [
+    {
+      "name": "BM_Regression",
+      "run_type": "iteration",
+      "real_time": 100.0,
+      "cpu_time": 99.5,
+      "time_unit": "ns"
+    }
+  ]
+}
