@@ -4,8 +4,6 @@ import axios from 'axios';
 import { getRuns } from '../api/runs';
 import type { RunListItem, Pagination } from '../types';
 import Spinner from '../components/Spinner';
-import { logout } from '../api/auth';
-import { useAuth } from '../hooks/useAuth';
 
 type SourceFilter = 'all' | 'synthetic' | 'user-supplied import';
 
@@ -21,8 +19,6 @@ function formatNs(ns: number): string {
 
 export default function RunsPage() {
   const navigate = useNavigate();
-  const { setAuthenticated } = useAuth();
-  const [logoutError, setLogoutError] = useState<string | null>(null);
   const [runs, setRuns] = useState<RunListItem[]>([]);
   const [pagination, setPagination] = useState<Pagination | null>(null);
   const [page, setPage] = useState(1);
@@ -120,29 +116,11 @@ export default function RunsPage() {
     }
   }
 
-  async function handleLogout() {
-    setLogoutError(null);
-    try {
-      await logout();
-      setAuthenticated(false);
-    } catch {
-      setLogoutError('Logout failed. Please try again.');
-    }
-  }
-
   return (
     <main className="page">
       <header className="page-header">
         <h1>Run History</h1>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          {logoutError && (
-            <span role="alert" style={{ color: 'var(--color-error, #c0392b)', fontSize: '0.875rem' }}>
-              {logoutError}
-            </span>
-          )}
-          <button onClick={handleLogout} className="btn btn-outline">Log out</button>
-          <Link to="/compare" className="btn">Compare runs</Link>
-        </div>
+        <Link to="/compare" className="btn">Compare runs</Link>
       </header>
 
       <section className="filters" aria-label="Filter runs">

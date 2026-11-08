@@ -112,6 +112,18 @@ code {
   padding: 1px 5px;
 }
 
+/* ── App nav (shared authenticated header) ───────────────── */
+.app-nav {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg);
+  flex-wrap: wrap;
+}
+
 /* ── Layout helpers ───────────────────────────────────────── */
 .page {
   max-width: 1100px;
