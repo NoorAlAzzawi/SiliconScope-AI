@@ -34,6 +34,8 @@ export interface MetricResult {
   pAdj: number | null;
   n_baseline: number;
   n_candidate: number;
+  mean_baseline_ns: number | null;
+  mean_candidate_ns: number | null;
   caveats: string[];
   cvBaselinePct: number | null;
   cvCandidatePct: number | null;
@@ -116,6 +118,8 @@ export function runComparison(
       pAdj: null,
       n_baseline: nB,
       n_candidate: nC,
+      mean_baseline_ns: nB >= 1 ? meanB : null,
+      mean_candidate_ns: nC >= 1 ? meanC : null,
       caveats: [],
       cvBaselinePct,
       cvCandidatePct,

@@ -177,7 +177,7 @@ comparisonsRouter.post('/', requireAnyAuth, async (req: Request, res: Response):
   }
 
   // §7.2 Confounding flags (MVP set: OS version and build_config).
-  const confoundingFlags: Array<{ flag: string; severity: string; value_a?: string; value_b?: string }> = [];
+  const confoundingFlags: Array<{ flag: string; severity: string; value_a: string; value_b: string }> = [];
 
   // OS version mismatch (same family already confirmed above).
   if (osVersionA && osVersionB && osVersionA !== osVersionB) {
@@ -194,7 +194,7 @@ comparisonsRouter.post('/', requireAnyAuth, async (req: Request, res: Response):
   const bcA = buildConfigA ?? null;
   const bcB = buildConfigB ?? null;
   if (bcA === null || bcB === null) {
-    confoundingFlags.push({ flag: '(build_config: unverified)', severity: 'Medium', value_a: bcA ?? 'null', value_b: bcB ?? 'null' });
+    confoundingFlags.push({ flag: '(build_config: unverified)', severity: 'Medium', value_a: bcA ?? '(none)', value_b: bcB ?? '(none)' });
   } else if (!isDebugBuild(buildTypeA) && !isDebugBuild(buildTypeB) && bcA !== bcB) {
     confoundingFlags.push({ flag: '(build_config: mismatch)', severity: 'Medium', value_a: bcA ?? '', value_b: bcB ?? '' });
   }
@@ -276,10 +276,13 @@ comparisonsRouter.post('/', requireAnyAuth, async (req: Request, res: Response):
       p_raw:            m.pRaw,
       p_adjusted:       m.pAdj,
       reason_code:      m.subLabel,
-      n_baseline:       m.n_baseline,
-      n_candidate:      m.n_candidate,
-      cv_baseline_pct:  m.cvBaselinePct,
-      cv_candidate_pct: m.cvCandidatePct,
+      n_baseline:        m.n_baseline,
+      n_candidate:       m.n_candidate,
+      mean_baseline_ns:  m.mean_baseline_ns,
+      mean_candidate_ns: m.mean_candidate_ns,
+      cv_baseline_pct:   m.cvBaselinePct,
+      cv_candidate_pct:  m.cvCandidatePct,
+      caveats:           m.caveats,
     };
   });
 
@@ -336,11 +339,10 @@ comparisonsRouter.post('/', requireAnyAuth, async (req: Request, res: Response):
 comparisonsRouter.get('/:id', requireAnyAuth, async (req: Request, res: Response): Promise<void> => {
   const comparisonId = req.params.id;
 
-  let comparison: Record<string, unknown> | undefined;
+  let comparison: { result: unknown } | undefined;
   try {
-    const r = await dbPool.query<Record<string, unknown>>(
-      `SELECT comparison_id, session_a_id, session_b_id, result, computed_at
-       FROM comparisons WHERE comparison_id = $1`,
+    const r = await dbPool.query<{ result: unknown }>(
+      `SELECT result FROM comparisons WHERE comparison_id = $1`,
       [comparisonId]
     );
     comparison = r.rows[0];

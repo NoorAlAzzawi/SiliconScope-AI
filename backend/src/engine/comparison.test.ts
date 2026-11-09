@@ -14,6 +14,40 @@ function bimodalSamples(lo: number, hi: number): number[] {
   return [...Array(15).fill(lo), ...Array(15).fill(hi)];
 }
 
+describe('runComparison — mean_baseline_ns / mean_candidate_ns', () => {
+
+  it('stores meanB and meanC in MetricResult on the standard path', () => {
+    // baseline mean = 100, candidate mean = 200
+    const baseline = [98, 102];
+    const candidate = [198, 202];
+    const output = runComparison([makeInput(baseline, candidate)]);
+    const m = output.metrics[0];
+
+    expect(m.mean_baseline_ns).toBeCloseTo(100, 5);
+    expect(m.mean_candidate_ns).toBeCloseTo(200, 5);
+  });
+
+  it('stores mean even when G1 fires (N=1 baseline)', () => {
+    const baseline = [1_000_000];
+    const candidate = Array(5).fill(1_050_000);
+    const output = runComparison([makeInput(baseline, candidate)]);
+    const m = output.metrics[0];
+
+    expect(m.mean_baseline_ns).toBe(1_000_000);
+    expect(m.mean_candidate_ns).toBeCloseTo(1_050_000, 5);
+    expect(m.label).toBe('Inconclusive');
+  });
+
+  it('stores null means when arrays are empty', () => {
+    const output = runComparison([makeInput([], [])]);
+    const m = output.metrics[0];
+
+    expect(m.mean_baseline_ns).toBeNull();
+    expect(m.mean_candidate_ns).toBeNull();
+  });
+
+});
+
 describe('runComparison — cvBaselinePct / cvCandidatePct', () => {
 
   it('1. standard path: CV computed correctly for both sides', () => {

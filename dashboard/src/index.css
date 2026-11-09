@@ -293,6 +293,28 @@ td {
 tbody tr:last-child td { border-bottom: none; }
 tbody tr:hover { background: var(--color-surface); }
 
+.cell-truncate {
+  display: block;
+  max-width: 14em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.caveat-row td {
+  padding: 4px 14px 8px;
+  background: var(--color-surface);
+}
+
+.caveat-list {
+  margin: 0;
+  padding-left: 1.25em;
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+}
+
+.caveat-list li { margin: 2px 0; }
+
 /* ── Pagination ───────────────────────────────────────────── */
 .pagination {
   display: flex;

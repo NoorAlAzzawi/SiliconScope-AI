@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
 import { getComparison } from '../api/comparisons';
@@ -9,6 +9,13 @@ function formatDelta(delta: number | null): string {
   if (delta === null) return '—';
   const sign = delta > 0 ? '+' : '';
   return `${sign}${delta.toFixed(2)}%`;
+}
+
+function formatNs(ns: number | null): string {
+  if (ns === null) return '—';
+  if (ns >= 1_000_000) return `${(ns / 1_000_000).toFixed(3)} ms`;
+  if (ns >= 1_000) return `${(ns / 1_000).toFixed(1)} µs`;
+  return `${Math.round(ns)} ns`;
 }
 
 function deltaClass(delta: number | null): string {
@@ -191,25 +198,46 @@ export default function ComparisonResultPage() {
                   <th scope="col">Change</th>
                   <th scope="col">Baseline N</th>
                   <th scope="col">Candidate N</th>
+                  <th scope="col">Baseline Mean</th>
+                  <th scope="col">Candidate Mean</th>
                   <th scope="col">Baseline CV</th>
                   <th scope="col">Candidate CV</th>
                 </tr>
               </thead>
               <tbody>
                 {result.per_metric_results.map((r, i) => (
-                  <tr key={i}>
-                    <td>{r.canonical_name}</td>
-                    <td>{r.project_name}</td>
-                    <td>{r.metric}</td>
-                    <td>{r.classification}</td>
-                    <td className={deltaClass(r.delta_pct)}>
-                      {formatDelta(r.delta_pct)}
-                    </td>
-                    <td>{r.n_baseline ?? '—'}</td>
-                    <td>{r.n_candidate ?? '—'}</td>
-                    <td>{r.cv_baseline_pct != null ? `${r.cv_baseline_pct.toFixed(1)}%` : '—'}</td>
-                    <td>{r.cv_candidate_pct != null ? `${r.cv_candidate_pct.toFixed(1)}%` : '—'}</td>
-                  </tr>
+                  <Fragment key={i}>
+                    <tr>
+                      <td title={r.canonical_name}>
+                        <span className="cell-truncate">{r.canonical_name}</span>
+                      </td>
+                      <td title={r.project_name}>
+                        <span className="cell-truncate">{r.project_name}</span>
+                      </td>
+                      <td>{r.metric}</td>
+                      <td>{r.classification}</td>
+                      <td className={deltaClass(r.delta_pct)}>
+                        {formatDelta(r.delta_pct)}
+                      </td>
+                      <td>{r.n_baseline ?? '—'}</td>
+                      <td>{r.n_candidate ?? '—'}</td>
+                      <td>{formatNs(r.mean_baseline_ns ?? null)}</td>
+                      <td>{formatNs(r.mean_candidate_ns ?? null)}</td>
+                      <td>{r.cv_baseline_pct != null ? `${r.cv_baseline_pct.toFixed(1)}%` : '—'}</td>
+                      <td>{r.cv_candidate_pct != null ? `${r.cv_candidate_pct.toFixed(1)}%` : '—'}</td>
+                    </tr>
+                    {(r.caveats ?? []).length > 0 && (
+                      <tr className="caveat-row">
+                        <td colSpan={11}>
+                          <ul className="caveat-list">
+                            {(r.caveats ?? []).map((c, j) => (
+                              <li key={j}>{c}</li>
+                            ))}
+                          </ul>
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
                 ))}
               </tbody>
             </table>

@@ -23,6 +23,12 @@ function formatPct(val: number): string {
   return (val >= 0 ? '+' : '') + str + '%';
 }
 
+function formatNs(ns: number): string {
+  if (ns >= 1_000_000) return `${(ns / 1_000_000).toFixed(3)} ms`;
+  if (ns >= 1_000) return `${(ns / 1_000).toFixed(1)} µs`;
+  return `${Math.round(ns)} ns`;
+}
+
 function buildMetricLines(m: MetricResult): string[] {
   const classDisplay = m.label
     ? (m.subLabel ? `${m.label} [${m.subLabel}]` : m.label)
@@ -31,8 +37,10 @@ function buildMetricLines(m: MetricResult): string[] {
   const lines: string[] = [`${m.name}: ${classDisplay}`];
 
   if (m.deltaPct !== null && m.regressionEffect !== null) {
+    const baselineMean = m.mean_baseline_ns != null ? `, mean=${formatNs(m.mean_baseline_ns)}` : '';
+    const candidateMean = m.mean_candidate_ns != null ? `, mean=${formatNs(m.mean_candidate_ns)}` : '';
     lines.push(
-      `  Baseline mean: ${m.n_baseline} samples. Candidate mean: ${m.n_candidate} samples. ` +
+      `  Baseline: N=${m.n_baseline}${baselineMean}. Candidate: N=${m.n_candidate}${candidateMean}. ` +
       `Change: ${formatPct(m.deltaPct)} (regression effect: ${formatPct(m.regressionEffect)}).`,
     );
   } else {

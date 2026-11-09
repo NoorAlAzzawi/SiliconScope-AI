@@ -17,6 +17,8 @@ function makeMetric(overrides: Partial<MetricResult>): MetricResult {
     pAdj: overrides.pAdj ?? null,
     n_baseline: overrides.n_baseline ?? 10,
     n_candidate: overrides.n_candidate ?? 10,
+    mean_baseline_ns: overrides.mean_baseline_ns ?? null,
+    mean_candidate_ns: overrides.mean_candidate_ns ?? null,
     caveats: overrides.caveats ?? [],
     cvBaselinePct: overrides.cvBaselinePct ?? null,
     cvCandidatePct: overrides.cvCandidatePct ?? null,
@@ -82,7 +84,7 @@ describe('generateExplanation', () => {
     checkNoProhibited(result);
   });
 
-  it('2. clear regression', () => {
+  it('2. clear regression — corrected label format (Baseline: N=, mean=)', () => {
     const output = makeOutput(
       [{
         name: 'proj/BM_sort',
@@ -92,6 +94,8 @@ describe('generateExplanation', () => {
         regressionEffect: 30,
         n_baseline: 10,
         n_candidate: 10,
+        mean_baseline_ns: 1_000_000,
+        mean_candidate_ns: 1_300_000,
         pAdj: 0.001,
         flags: [],
       }],
@@ -107,6 +111,12 @@ describe('generateExplanation', () => {
     expect(result).toContain('Regression Detected');
     expect(result).toContain('+30%');
     expect(result).toContain('Overall result: Regression Detected');
+    // New corrected label: "Baseline: N=10, mean=1.000 ms"
+    expect(result).toContain('Baseline: N=10, mean=1.000 ms');
+    expect(result).toContain('Candidate: N=10, mean=1.300 ms');
+    // Old incorrect label must NOT appear
+    expect(result).not.toContain('Baseline mean:');
+    expect(result).not.toContain('Candidate mean:');
     checkNoProhibited(result);
   });
 

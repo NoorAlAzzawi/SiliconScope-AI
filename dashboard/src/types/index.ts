@@ -73,8 +73,8 @@ export interface RunDetail {
 export interface ConfoundingFactor {
   flag: string;
   severity: string;
-  value_a: string;
-  value_b: string;
+  value_a?: string;
+  value_b?: string;
 }
 
 export interface PerMetricResult {
@@ -92,8 +92,11 @@ export interface PerMetricResult {
   reason_code: string | null;
   n_baseline: number | null;
   n_candidate: number | null;
+  mean_baseline_ns: number | null;
+  mean_candidate_ns: number | null;
   cv_baseline_pct: number | null;
   cv_candidate_pct: number | null;
+  caveats?: string[];
 }
 
 export interface OverallSummary {

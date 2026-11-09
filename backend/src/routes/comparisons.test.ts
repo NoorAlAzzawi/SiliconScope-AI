@@ -455,14 +455,60 @@ describe('POST /api/v1/comparisons', () => {
     expect(res.body).toHaveProperty('rule_based_explanation');
     expect(typeof res.body.rule_based_explanation).toBe('string');
     expect(res.body.mandatory_disclaimer).toBeNull();
-    expect(res.body.per_metric_results[0]).toHaveProperty('project_name', 'proj');
-    expect(res.body.per_metric_results[0]).toHaveProperty('canonical_name', 'BM_sort');
-    expect(res.body.per_metric_results[0]).toHaveProperty('polarity', 'LIB');
-    expect(res.body.per_metric_results[0]).toHaveProperty('classification');
-    expect(res.body.per_metric_results[0]).toHaveProperty('n_baseline');
-    expect(res.body.per_metric_results[0]).toHaveProperty('n_candidate');
-    expect(typeof res.body.per_metric_results[0].n_baseline).toBe('number');
-    expect(typeof res.body.per_metric_results[0].n_candidate).toBe('number');
+    const pmr = res.body.per_metric_results[0];
+    expect(pmr).toHaveProperty('project_name', 'proj');
+    expect(pmr).toHaveProperty('canonical_name', 'BM_sort');
+    expect(pmr).toHaveProperty('polarity', 'LIB');
+    expect(pmr).toHaveProperty('classification');
+    expect(pmr).toHaveProperty('n_baseline');
+    expect(pmr).toHaveProperty('n_candidate');
+    expect(typeof pmr.n_baseline).toBe('number');
+    expect(typeof pmr.n_candidate).toBe('number');
+    expect(typeof pmr.mean_baseline_ns).toBe('number');
+    expect(typeof pmr.mean_candidate_ns).toBe('number');
+    expect(Array.isArray(pmr.caveats)).toBe(true);
+  });
+
+  it('201 per_metric_results includes non-null cv fields and high_cv flag for high-variance fixture', async () => {
+    // Replace measurements with high-variance data: [100, 200] for baseline (CV=47%), [150, 250] for candidate
+    casesStore[SESSION_A] = [{
+      project_name: 'proj', canonical_name: 'BM_sort', data_type: 'raw_samples_available',
+      measurements: JSON.stringify({ raw_rows: [{ real_time_ns: 100 }, { real_time_ns: 200 }], aggregate_rows: [] }),
+    }];
+    casesStore[SESSION_B] = [{
+      project_name: 'proj', canonical_name: 'BM_sort', data_type: 'raw_samples_available',
+      measurements: JSON.stringify({ raw_rows: [{ real_time_ns: 150 }, { real_time_ns: 250 }], aggregate_rows: [] }),
+    }];
+
+    const res = await request(app)
+      .post('/api/v1/comparisons')
+      .set('Authorization', 'Bearer test-key')
+      .send({ session_a_id: SESSION_A, session_b_id: SESSION_B });
+
+    expect(res.status).toBe(201);
+    const pmr = res.body.per_metric_results[0];
+    expect(pmr.cv_baseline_pct).not.toBeNull();
+    expect(pmr.cv_candidate_pct).not.toBeNull();
+    expect(typeof pmr.cv_baseline_pct).toBe('number');
+    expect(typeof pmr.cv_candidate_pct).toBe('number');
+    expect(pmr.cv_baseline_pct).toBeGreaterThan(5);
+    expect(pmr.flags).toContain('high_cv');
+  });
+
+  it('201 build_config unverified uses (none) not "null" string', async () => {
+    sessionsStore[SESSION_A] = { ...sessionsStore[SESSION_A], build_config: null };
+
+    const res = await request(app)
+      .post('/api/v1/comparisons')
+      .set('Authorization', 'Bearer test-key')
+      .send({ session_a_id: SESSION_A, session_b_id: SESSION_B });
+
+    expect(res.status).toBe(201);
+    const unverified = (res.body.confounding_factors as Array<{ flag: string; value_a: string }>)
+      .find((f) => f.flag === '(build_config: unverified)');
+    expect(unverified).toBeDefined();
+    expect(unverified!.value_a).toBe('(none)');
+    expect(unverified!.value_a).not.toBe('null');
   });
 
   it('201 includes provenance in explanation when session source is user-supplied import', async () => {
