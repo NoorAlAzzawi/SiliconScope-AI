@@ -2,6 +2,8 @@
 
 A developer tool for reproducible benchmark history, statistical regression detection, and hardware-aware run comparison. Built as a native C++20 agent, Node.js/TypeScript backend, and React dashboard — targeted at performance-sensitive macOS development workflows.
 
+> **[→ Try the Interactive Demo](https://nooralazzawi.github.io/SiliconScope-AI/)** — explore sample benchmark comparisons in the browser without installing anything.
+
 ---
 
 ## Overview
@@ -9,6 +11,44 @@ A developer tool for reproducible benchmark history, statistical regression dete
 Performance regressions are easy to introduce and hard to notice. SiliconScope AI tracks benchmark runs across time, detects statistically significant changes, and surfaces confounding factors (CPU model, OS version, build type, ISA) that affect comparability.
 
 The agent runs locally on the developer's machine, stores results in a local SQLite database, and syncs to a PostgreSQL backend over HTTP. The backend computes a deterministic SHA-256 content fingerprint for each run and verifies it against the agent's submitted fingerprint before persisting. The React dashboard provides a paginated run history, free-text search, side-by-side comparison with per-metric statistical classification, mean timing display, coefficient-of-variation reporting, and an exportable JSON summary.
+
+---
+
+## Interactive Demo
+
+A no-install preview is published on GitHub Pages via the `deploy-demo.yml` GitHub Actions workflow.
+
+**<https://nooralazzawi.github.io/SiliconScope-AI/>**
+
+The demo runs entirely in the browser. It uses synthetic fixtures and does not connect to a live backend, PostgreSQL database, or C++ agent.
+
+### Sample data
+
+Two pre-configured benchmark sessions are included:
+
+- **Baseline session** (`demo-session-baseline`) — reference measurements
+- **Candidate session** (`demo-session-candidate`) — post-change measurements
+
+### What to try
+
+1. The **Run History** page lists both sessions with timestamps and sync status.
+2. Click **Compare Demo Runs →** on the home page to trigger a pre-configured comparison.
+3. The **Comparison Result** page demonstrates three classification outcomes across three metrics:
+   - **BM_cpu_integer** — Regression Detected (C1): +14.9%, 125 ms → 143.6 ms, N=30, CV ≈1.5%
+   - **BM_memory_bandwidth** — No Change (C4): −7.8%, 250 ms → 230.5 ms
+   - **BM_cache_access** — Inconclusive (C3): +1.2%, 45 ms → 45.5 ms, N=10; a high-variance caveat is shown because CV exceeds 5%
+4. Click any run row to view session detail with raw measurement rows.
+
+### Demo disclosure
+
+| Property | Detail |
+|----------|--------|
+| Data | Synthetic fixtures only — no real benchmark measurements |
+| Backend | None — all API calls are intercepted in-browser by a fail-closed axios adapter |
+| Database | None |
+| Agent | Not required |
+| Authentication | Demo mode statically sets `isAuthenticated: true`; no login required |
+| Production app | Completely unaffected — requires `SSCOPE_DASHBOARD_PASSWORD` and a live backend |
 
 ---
 
@@ -282,33 +322,49 @@ cd backend && npm test
 
 Suites: comparison engine (mean fields, CV fields, guard conditions, Holm–Bonferroni), explanation generator (label correctness, mean formatting), route handlers (fingerprint verification, pagination, CV mapping, confounding factor display), statistics, and utilities.
 
-### Dashboard component tests (Vitest + React Testing Library)
+### Dashboard unit and structural tests (Vitest + React Testing Library)
 
 ```bash
 cd dashboard && npm test
 ```
 
-**48 tests pass** across 7 test files:
+**66 tests pass** across 9 test files:
 
-| File | Component | Coverage |
-|------|-----------|----------|
-| `AuthLayout.test.tsx` | `AuthLayout` | Logout button rendering, logout success/failure, error clearing |
-| `ProtectedRoute.test.tsx` | `ProtectedRoute` | Loading state, unauthenticated redirect, authenticated rendering |
-| `LoginPage.test.tsx` | `LoginPage` | Form rendering, submission, 401/503/network error states |
-| `RunsPage.test.tsx` | `RunsPage` | List rendering, empty state, 503 error, checkbox selection, pagination |
-| `RunDetailPage.test.tsx` | `RunDetailPage` | Spinner, run metadata, benchmark table, 404/503 errors |
-| `ComparePage.test.tsx` | `ComparePage` | UUID inputs, search param pre-fill, auto-trigger, 400/404/503, in-flight state |
-| `ComparisonResultPage.test.tsx` | `ComparisonResultPage` | Summary label, per-metric table, mean columns, CV columns, caveats row, old-JSONB backward compat, export |
+| File | Tests | Coverage |
+|------|-------|----------|
+| `AuthLayout.test.tsx` | 4 | Logout button rendering, logout success/failure, error clearing |
+| `ProtectedRoute.test.tsx` | 3 | Loading state, unauthenticated redirect, authenticated rendering |
+| `LoginPage.test.tsx` | 6 | Form rendering, submission, 401/503/network error states |
+| `RunsPage.test.tsx` | 7 | List rendering, empty state, 503 error, checkbox selection, pagination |
+| `RunDetailPage.test.tsx` | 6 | Spinner, run metadata, benchmark table, 404/503 errors |
+| `ComparePage.test.tsx` | 8 | UUID inputs, search param pre-fill, auto-trigger, 400/404/503, in-flight state |
+| `ComparisonResultPage.test.tsx` | 14 | Summary label, per-metric table, mean columns, CV columns, caveats row, old-JSONB backward compat, export |
+| `demoApiAdapter.test.ts` | 11 | 5 matched routes return correct fixtures; 3 unmatched URLs throw explicitly; 3 tests confirm `fetch` and `XMLHttpRequest` are never called |
+| `demoIsolation.test.tsx` | 7 | No static demo imports in production source files; dynamic import only in `main.tsx`; `.env` and `.env.production` clean; `ProtectedRoute` auth enforcement unchanged |
+
+The demo test files (`demoApiAdapter.test.ts`, `demoIsolation.test.tsx`) use `vi.stubGlobal` to confirm the fail-closed adapter never reaches the browser network layer, and `fs`/`path` to verify source-level production isolation at test time.
 
 ### Dashboard E2E tests (Playwright)
 
+#### Production smoke suite
+
 ```bash
-cd dashboard && npx playwright test
+cd dashboard && npm run test:e2e
 ```
 
-**7 E2E smoke tests**, all passing. The Playwright config (`playwright.config.ts`) starts an isolated Vite dev server on port **5178** and intercepts all API calls via `page.route()` — **no live backend or database is required**. Mocked endpoints: `/dashboard/login`, `/dashboard/logout`, `/api/v1/runs`, `/api/v1/runs/:id`, `/api/v1/comparisons`, `/api/v1/comparisons/:id`.
+**7 smoke tests**, all passing. The Playwright config (`playwright.config.ts`) starts an isolated Vite dev server on port **5178** and intercepts all API calls via `page.route()` — **no live backend or database is required**. Mocked endpoints: `/dashboard/login`, `/dashboard/logout`, `/api/v1/runs`, `/api/v1/runs/:id`, `/api/v1/comparisons`, `/api/v1/comparisons/:id`.
 
 Tests cover: unauthenticated redirect to `/login`, login form submission, run history rendering, run detail navigation, two-run selection and comparison trigger, comparison result page (summary label, per-metric table, export button), and logout with subsequent re-authentication check.
+
+#### Demo E2E suite
+
+```bash
+cd dashboard && npm run test:e2e:demo
+```
+
+**10 E2E tests**, all passing. The Playwright demo config (`playwright.demo.config.ts`) starts a Vite dev server on port **5180** in `--mode demo` with `VITE_DEMO_MODE=true`. No backend, database, or login is required — the fail-closed axios adapter intercepts all API calls in-process.
+
+Tests cover: run list with demo data and banner, run detail for baseline and candidate sessions, compare page, comparison result (regression badge, high-CV caveat), network-request guard (confirms no `/api/` or `/dashboard/` requests reach the browser network layer), demo banner visibility across all pages, CTA visibility and absence, and full user journey from home → run detail → back → CTA → comparison result.
 
 ### Backend integration tests
 
@@ -340,14 +396,51 @@ The integration suite runs 11 tests covering the full HTTP pipeline: registratio
 
 ### Test summary
 
-| Suite | Framework | Result |
-|-------|-----------|--------|
-| C++ agent (11 GoogleTest suites) | GoogleTest + ctest | 157 cases pass |
-| C++ agent (system tests) | ctest binary | 2 pass |
-| Backend unit + route tests | Jest 29 + Supertest | 138 pass, 8 skipped |
-| Dashboard component tests | Vitest 5.1 + RTL 16.3 | 48 pass |
-| Dashboard E2E (mocked API) | Playwright 1.65 | 7 pass |
-| Backend integration (live DB) | Jest 29 | 11 pass |
+| Suite | Framework | Result | Backend required |
+|-------|-----------|--------|-----------------|
+| C++ agent (11 GoogleTest suites) | GoogleTest + ctest | 157 cases pass | No |
+| C++ agent (system tests) | ctest binary | 2 pass | No |
+| Backend unit + route tests | Jest 29 + Supertest | 138 pass, 8 skipped | No |
+| Dashboard Vitest (component + demo unit/structural) | Vitest 5.1 + RTL 16.3 | 66 pass | No |
+| Dashboard production smoke E2E (mocked API) | Playwright 1.65 | 7 pass | No (mocked) |
+| Dashboard demo E2E (synthetic fixtures) | Playwright 1.65 | 10 pass | No |
+| Backend integration (live DB) | Jest 29 | 11 pass | Yes (Docker) |
+
+---
+
+## GitHub Pages Deployment
+
+The interactive demo is deployed automatically on every push to `main` that touches `dashboard/**`, `scripts/**`, or the workflow file itself.
+
+**Workflow**: `.github/workflows/deploy-demo.yml`<br>
+**Trigger**: push to `main` (path-filtered) or manual `workflow_dispatch`<br>
+**Published URL**: <https://nooralazzawi.github.io/SiliconScope-AI/>
+
+### Build steps
+
+1. `actions/configure-pages@v5` — validates that Pages is enabled before spending CI minutes building
+2. Install dependencies with `npm ci` (Node 22, satisfying Vite 8's `^20.19.0 || >=22.12.0` engine requirement)
+3. Run all 66 Vitest unit and structural tests
+4. Build demo: `npm run build:demo` → `tsc -b && vite build --mode demo --outDir dist-demo` (base path `/SiliconScope-AI/`)
+5. Safety scan of `dist-demo/`: rejects `.env` files, `*.pem` / `*.key` / `*.p12` / `*.pfx` files, and any file containing a PEM private-key header; aborts deployment on any match
+6. Verify demo fixture strings are present in the built bundle
+7. Upload only `dashboard/dist-demo/` via `actions/upload-pages-artifact@v3`
+8. Deploy via `actions/deploy-pages@v4` using OIDC — no long-lived secrets or tokens required
+
+Permissions granted to the workflow: `contents: read`, `pages: write`, `id-token: write`. No repository secrets are needed.
+
+### One-time repository setting
+
+> **Settings → Pages → Source → "GitHub Actions"**
+
+### Rollback
+
+```bash
+git revert HEAD      # creates a new revert commit, keeps history intact
+git push origin main # triggers a fresh deployment of the reverted state
+```
+
+Re-running an old workflow run re-runs the same workflow steps on the **current HEAD** — it does not restore old code. The revert-and-push procedure above is reliable.
 
 ---
 
@@ -388,7 +481,9 @@ Phase 1 MVP is complete (November 2026). macOS is the validated platform.
 - Offline-first SQLite storage with automatic HTTP sync and idempotent run submission
 - Statistical regression detection: Welch's t-test, Holm–Bonferroni correction, CV reporting, confounding factor detection, CI eligibility gate
 - React dashboard: authenticated sessions with shared navigation layout, run history with free-text search, comparison result view with mean timings and caveats, JSON export
-- Comprehensive test suite: 157 C++ GoogleTest cases + 2 system tests, 138 backend tests, 48 dashboard component tests, 7 E2E tests, 11 integration tests
+- Interactive demo dashboard: browser-only preview with synthetic fixtures, fail-closed axios adapter, `HashRouter`-based routing, and static auth bypass; production bundle isolation verified at three levels (Vitest structural tests, bundle grep, Playwright network guard)
+- GitHub Pages deployment via GitHub Actions with artifact safety scanning; published at <https://nooralazzawi.github.io/SiliconScope-AI/>
+- Comprehensive test suite: 157 C++ GoogleTest cases + 2 system tests, 138 backend tests, 66 dashboard Vitest tests (component + demo unit/structural), 7 production smoke E2E tests, 10 demo E2E tests, 11 backend integration tests
 
 **Production hardening — planned post-Phase 1**:
 - Replace in-memory session store with a persistent, process-independent store (Redis or database-backed) so sessions survive backend restarts
