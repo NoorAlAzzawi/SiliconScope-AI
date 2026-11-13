@@ -1,0 +1,133 @@
+name: Deploy Demo to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'dashboard/**'
+      - 'scripts/**'
+      - '.github/workflows/deploy-demo.yml'
+  workflow_dispatch:
+
+# Minimum permissions: read source, write Pages, obtain OIDC token for Pages deployment.
+# No other permissions are granted.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow one concurrent deployment; do not cancel in-progress runs so a
+# partial deployment is never interrupted mid-flight.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Validates that GitHub Pages is enabled on the repository and
+      # configured to deploy from GitHub Actions before the build starts.
+      # Provides early failure rather than wasting build minutes on a misconfiguration.
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      # Vite 8.3.5 requires ^20.19.0 || >=22.12.0.
+      # Node 22 satisfies the requirement on all patch releases.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: dashboard/package-lock.json
+
+      - name: Install dependencies
+        working-directory: dashboard
+        run: npm ci
+
+      # .env.demo is gitignored (root .gitignore: .env.*).
+      # VITE_DEMO_MODE=true is a build-mode flag, not a secret: Vite bakes
+      # it as a string literal into the bundle at compile time.
+      - name: Create .env.demo
+        working-directory: dashboard
+        run: printf 'VITE_DEMO_MODE=true\n' > .env.demo
+
+      # Run all Vitest unit and structural tests before building.
+      - name: Run unit tests
+        working-directory: dashboard
+        run: npm test
+
+      # tsc -b is included in build:demo; TypeScript errors fail the build.
+      - name: Build demo
+        working-directory: dashboard
+        run: npm run build:demo
+
+      # Safety check: reject sensitive files that must never reach a public host.
+      # Checks for: .env files, private-key/cert files, PEM private-key headers.
+      - name: Safety check — scan dist-demo for sensitive files
+        working-directory: dashboard
+        run: |
+          set -euo pipefail
+          found=0
+
+          echo "Scanning dist-demo/ for sensitive files..."
+
+          # .env files of any name
+          while IFS= read -r -d '' f; do
+            echo "FAIL: .env file in artifact: $f"
+            found=1
+          done < <(find dist-demo -name ".env*" -print0 2>/dev/null)
+
+          # Private-key and certificate file extensions
+          while IFS= read -r -d '' f; do
+            echo "FAIL: key/cert file in artifact: $f"
+            found=1
+          done < <(find dist-demo \( \
+            -name "*.pem" -o \
+            -name "*.key" -o \
+            -name "*.p12" -o \
+            -name "*.pfx"  \
+          \) -print0 2>/dev/null)
+
+          # PEM private-key header present inside any file
+          while IFS= read -r -d '' f; do
+            if grep -qlP "BEGIN (RSA |EC |DSA |OPENSSH )?PRIVATE KEY" "$f" 2>/dev/null; then
+              echo "FAIL: private-key header detected in: $f"
+              found=1
+            fi
+          done < <(find dist-demo -type f -print0 2>/dev/null)
+
+          if [ "$found" -ne 0 ]; then
+            echo "Artifact safety check FAILED. Deployment aborted."
+            exit 1
+          fi
+          echo "Artifact safety check passed."
+
+      # Confirm the demo fixture strings are present in the demo build.
+      # Absence would indicate the demo entry point was not bundled correctly.
+      - name: Verify demo fixture strings in demo build
+        working-directory: dashboard
+        run: |
+          set -euo pipefail
+          if ! grep -rl "demo-session-baseline" dist-demo/assets/*.js > /dev/null 2>&1; then
+            echo "FAIL: demo fixture string 'demo-session-baseline' not found in dist-demo/assets/."
+            echo "The demo build may not have bundled the correct entry point."
+            exit 1
+          fi
+          echo "Demo fixture strings confirmed in demo build."
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dashboard/dist-demo
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
